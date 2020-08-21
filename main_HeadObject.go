@@ -12,32 +12,32 @@ import (
 )
 
 // Unmarshalling the json struct requires the member to start with capital letters.
-type event struct {
+type fileDescriptor struct {
 	FileLocation string `json:"fileLocation"`
 	BucketName   string `json:"bucketName"`
 }
 
-type response struct {
-	FileLocation  string `json:"fileLocation"`
-	BucketName    string `json:"bucketName"`
-	FileAvailable bool   `json:"fileAvailable"`
+type event struct {
+	Files []fileDescriptor `json:"files"`
 }
 
-func handler(ctx context.Context, evt event) (response, error) {
-	// return fmt.Sprintf("File is %s", evt.fileLocation), nil
+type response struct {
+	AllFilesAvailable bool `json:"allFilesAvailable"`
+}
 
-	if evt.BucketName == "" {
-		return response{}, fmt.Errorf("BucketName is empty")
+func isFileAvailable(file fileDescriptor) (bool, error) {
+	if file.BucketName == "" {
+		return false, fmt.Errorf("BucketName is empty")
 	}
 
-	if evt.FileLocation == "" {
-		return response{}, fmt.Errorf("FileLocation is empty")
+	if file.FileLocation == "" {
+		return false, fmt.Errorf("FileLocation is empty")
 	}
 
 	s3Service := s3.New(session.New())
 	input := &s3.HeadObjectInput{
-		Bucket: aws.String(evt.BucketName),
-		Key:    aws.String(evt.FileLocation),
+		Bucket: aws.String(file.BucketName),
+		Key:    aws.String(file.FileLocation),
 	}
 
 	res, err := s3Service.HeadObject(input)
@@ -56,10 +56,18 @@ func handler(ctx context.Context, evt event) (response, error) {
 	fmt.Println(res.LastModified)
 	fmt.Println(res.LastModified != nil)
 
+	return res.LastModified != nil, nil
+}
+
+func handler(ctx context.Context, evt event) (response, error) {
+	available := false
+
+	for _, fileDescr := range evt.Files {
+		available, _ = isFileAvailable(fileDescr)
+	}
+
 	return response{
-		FileLocation:  evt.FileLocation,
-		BucketName:    evt.BucketName,
-		FileAvailable: res.LastModified != nil,
+		AllFilesAvailable: available,
 	}, nil
 }
 
