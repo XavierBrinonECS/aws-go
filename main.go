@@ -61,11 +61,13 @@ func isFileAvailable(file fileDescriptor) (bool, error) {
 
 func handler(ctx context.Context, evt event) (response, error) {
 
+	// Just for log purpose
 	areAvailable := make([]bool, len(evt.Files))
-	allAvailable := true
 	for i, fileDescr := range evt.Files {
 		areAvailable[i], _ = isFileAvailable(fileDescr)
 	}
+
+	allAvailable := true
 	for _, fileDescr := range evt.Files {
 		allAvailable, _ = isFileAvailable(fileDescr)
 		if !allAvailable {
